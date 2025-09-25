@@ -15,7 +15,7 @@ SOUNDS = [
     "/home/jakeagra/scarecrow/sounds/screaming-hawk.mp3",
     "/home/jakeagra/scarecrow/sounds/dog.mp3"
 ]
-DETECTION_CLASSES = ["cat", "dog", "bird", "cow", "sheep", "horse"]
+DETECTION_CLASSES = ["person","cat", "dog", "bird", "cow", "sheep", "horse","mouse"]
 COOLDOWN = 3   # seconds after each detection cycle
 
 # ==============================

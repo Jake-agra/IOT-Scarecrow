@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scarecrow Live Feed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: #101820;
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      width: 100%;
+      background: #1a2733;
+      padding: 1.5rem 0 1rem 0;
+      box-shadow: 0 2px 8px #0004;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      letter-spacing: 2px;
+      color: #f9d923;
+      text-shadow: 1px 2px 8px #000a;
+    }
+    .camera-container {
+      background: #222c37;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px #0006;
+      padding: 1.5rem 2rem 2rem 2rem;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 700px;
+      width: 100%;
+    }
+    .camera-img {
+      border: 4px solid #f9d923;
+      border-radius: 12px;
+      width: 640px;
+      height: 480px;
+      background: #222 url('/static/latest.jpg') center/cover no-repeat;
+      object-fit: cover;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 2px 16px #0008;
+    }
+    .detected-animals {
+      background: #18222e;
+      border-radius: 10px;
+      padding: 1rem 2rem;
+      margin-top: 1rem;
+      min-width: 320px;
+      box-shadow: 0 2px 8px #0004;
+      text-align: left;
+    }
+    .detected-animals h2 {
+      color: #f9d923;
+      margin-top: 0;
+      font-size: 1.3rem;
+      letter-spacing: 1px;
+    }
+    .animal-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .animal-list li {
+      padding: 0.3em 0.5em;
+      margin-bottom: 0.2em;
+      border-radius: 6px;
+      background: #263143;
+      color: #fff;
+      display: inline-block;
+      margin-right: 0.5em;
+      margin-bottom: 0.5em;
+      font-weight: 500;
+      box-shadow: 0 1px 4px #0002;
+      transition: background 0.2s;
+    }
+    .animal-list li.target {
+      background: #f9d923;
+      color: #222c37;
+      font-weight: bold;
+    }
+    @media (max-width: 700px) {
+      .camera-img { width: 98vw; height: auto; }
+      .camera-container { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🐦 Scarecrow Camera</h1>
+    <div style="color:#fff; font-size:1rem; opacity:0.7;">Motion + YOLO detection is running.<br>Sounds play when target animals are detected.</div>
+    <div id="status-bar" style="margin-top:1.2rem; display:flex; justify-content:center; gap:2.5em;">
+      <div class="status-indicator">
+        <span id="motion-dot" class="dot off"></span>
+        <span>Motion</span>
+      </div>
+      <div class="status-indicator">
+        <span id="camera-dot" class="dot off"></span>
+        <span>Camera</span>
+      </div>
+    </div>
+  </header>
+  <main class="camera-container">
+    <img class="camera-img" id="camera-img" src="{{ image_url if image_url else '/static/latest.jpg' }}?t={{ '%s'|format(loop.index0 if loop else 0) }}" alt="Camera Feed">
+    <section class="detected-animals">
+      <h2>Detected Animals</h2>
+      <ul class="animal-list" id="animal-list">
+        <li style="opacity:0.5;">No animals detected yet.</li>
+      </ul>
+    </section>
+  </main>
+  <style>
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      font-size: 1.1em;
+    }
+    .dot {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      margin-right: 0.3em;
+      background: #444;
+      border: 2px solid #222c37;
+      box-shadow: 0 1px 4px #0003;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .dot.on {
+      background: #00e676;
+      box-shadow: 0 0 8px #00e67699;
+    }
+    .dot.off {
+      background: #b71c1c;
+      box-shadow: 0 0 4px #b71c1c66;
+    }
+  </style>
+  <script>
+    // List of target animals (should match DETECTION_CLASSES in app.py)
+    const TARGET_ANIMALS = ["person","cat","dog","bird","cow","sheep","horse","mouse"];
+    function updateDetectedAnimals() {
+      fetch('/detected_animals').then(r => r.json()).then(data => {
+        const animals = data.animals || [];
+        const list = document.getElementById('animal-list');
+        list.innerHTML = '';
+        if (animals.length === 0) {
+          list.innerHTML = '<li style="opacity:0.5;">No animals detected.</li>';
+        } else {
+          animals.forEach(animal => {
+            const li = document.createElement('li');
+            li.textContent = animal;
+            if (TARGET_ANIMALS.includes(animal)) li.classList.add('target');
+            list.appendChild(li);
+          });
+        }
+      });
+    }
+    function updateStatusIndicators() {
+      fetch('/status').then(r => r.json()).then(data => {
+        const motion = data.motion;
+        const camera = data.camera_on;
+        const motionDot = document.getElementById('motion-dot');
+        const cameraDot = document.getElementById('camera-dot');
+        if (motion) {
+          motionDot.classList.add('on');
+          motionDot.classList.remove('off');
+        } else {
+          motionDot.classList.remove('on');
+          motionDot.classList.add('off');
+        }
+        if (camera) {
+          cameraDot.classList.add('on');
+          cameraDot.classList.remove('off');
+        } else {
+          cameraDot.classList.remove('on');
+          cameraDot.classList.add('off');
+        }
+      });
+    }
+    // Poll every 1.5s for detected animals and status
+    setInterval(updateDetectedAnimals, 1500);
+    setInterval(updateStatusIndicators, 1000);
+    updateDetectedAnimals();
+    updateStatusIndicators();
+    // Refresh camera image every 2s to show latest snapshot
+    setInterval(() => {
+      const img = document.getElementById('camera-img');
+      const src = img.src.split('?')[0];
+      img.src = src + '?t=' + Date.now();
+    }, 2000);
+  </script>
+</body>
+</html>
